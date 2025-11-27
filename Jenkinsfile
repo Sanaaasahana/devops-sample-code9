@@ -1,20 +1,23 @@
 pipeline {
-  agent {
-    docker {
-      image 'python:3.11'
-      args '-u root:root'   // run as root so venv/pip work
-    }
-  }
+  agent any
 
   stages {
     stage('Checkout') {
       steps { checkout scm }
     }
 
-    stage('Build') {
+    stage('Prepare / Build') {
       steps {
+        echo 'Checking Python and creating venv...'
         sh '''
-          python -m venv venv
+          if command -v python3 >/dev/null 2>&1; then
+            echo "python3 found: $(python3 --version)"
+          else
+            echo "python3 NOT found — aborting. Install python3 in the Jenkins node or use Option B." 1>&2
+            exit 2
+          fi
+
+          python3 -m venv venv || exit 1
           . venv/bin/activate
           pip install --upgrade pip
           pip install -r requirements.txt
@@ -59,8 +62,9 @@ pipeline {
       }
     }
   }
+
   post {
     success { echo 'Pipeline completed successfully!' }
-    failure { echo 'Pipeline failed. Check console.' }
+    failure { echo 'Pipeline failed. Check console logs.' }
   }
 }
